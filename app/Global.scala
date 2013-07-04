@@ -18,6 +18,8 @@ object Global extends GlobalSettings {
     reporter.get.start()
     val sender = system.actorOf(Props[Sender], "sender")
     val receiver = system.actorOf(Props[Receiver], "receiver")
+    Logger.debug("default-dispatcher throughput: " +
+      system.dispatchers.lookup("akka.actor.default-dispatcher").configurator.config.getInt("throughput"))
 //    system.eventStream.subscribe()
 
     Signal.handle(new Signal("USR2"), new SignalHandler {
@@ -42,8 +44,9 @@ object Sender {
 class Sender extends Actor {
   import Sender._
 
+  val remoteHost = Play.configuration.getString("application.remoteHost").getOrElse(throw new IllegalArgumentException("application.remoteHost not set"))
   val rport = Play.configuration.getInt("application.rport").getOrElse(throw new IllegalArgumentException("application.rport not set"))
-  val path = s"akka.tcp://application@192.168.0.1:$rport/user/receiver"
+  val path = s"akka.tcp://application@$remoteHost:$rport/user/receiver"
   val aSel = system.actorSelection(path)
 
   def receive = {
@@ -54,7 +57,6 @@ class Sender extends Actor {
       aSel ! d
 
       val m = (for (i <- 0 to 1024) yield "A") mkString ""
-      Logger.debug(s"Starting do ${System.nanoTime}")
       for(i <- 1L to ps) {
         aSel ! Receiver.Message(m, System.nanoTime)
         messageSenderNo.inc()
@@ -84,7 +86,7 @@ class Receiver extends Actor {
       messageMeter.mark()
       if (!lastTs.isEmpty) receiveIntHist.update(System.nanoTime - lastTs.get)
       lastTs = Some(ts)
-      sender ! m
+      if (reply) sender ! m
     }
     case Do => {
       lastTs = None
@@ -93,7 +95,7 @@ class Receiver extends Actor {
     case Done => {
       val end = System.nanoTime
       Logger.debug(s"Session DONE, start: ${start.get}, end: $end, delta: ${end - start.get} (${(end - start.get) / math.pow(1000, 3)} s)")
-      if (reply) sender ! Do
+      sender ! Do
     }
   }
 }
