@@ -1,6 +1,7 @@
 import akka.actor._
 import akka.remote.{DisassociatedEvent, RemotingLifecycleEvent, AssociatedEvent}
 import com.codahale.metrics._
+import java.io.File
 import play.api.libs.concurrent.Akka._
 import play.api.{Play, Logger, GlobalSettings, Application}
 import play.api.Play.current
@@ -11,11 +12,16 @@ import sun.misc.{SignalHandler, Signal}
 
 object Global extends GlobalSettings {
   val metrics = new MetricRegistry
-  var reporter: Option[JmxReporter] = None
+  var jmxReporter: Option[JmxReporter] = None
+  var sl4jReporter = Slf4jReporter.forRegistry(Global.metrics).outputTo(Logger.logger).build()
+  var csvReporter: Option[CsvReporter] = None
 
   override def onStart(app: Application) {
-    reporter = Some(JmxReporter.forRegistry(metrics).build())
-    reporter.get.start()
+    jmxReporter = Some(JmxReporter.forRegistry(metrics).build())
+    jmxReporter.get.start()
+    val csvDir = Play.current.path.getAbsolutePath + "/logs"
+    csvReporter = Some(CsvReporter.forRegistry(Global.metrics).build(new File(csvDir)))
+
     val sender = system.actorOf(Props[Sender], "sender")
     val receiver = system.actorOf(Props[Receiver], "receiver")
     Logger.debug("default-dispatcher throughput: " +
@@ -31,7 +37,7 @@ object Global extends GlobalSettings {
   }
 
   override def onStop(app: Application) {
-    if (reporter.isDefined) reporter.get.stop()
+    if (jmxReporter.isDefined) jmxReporter.get.stop()
   }
 }
 
@@ -63,6 +69,8 @@ class Sender extends Actor {
       }
       aSel ! Receiver.Done
       doneTimerCtx.stop()
+      Global.sl4jReporter.report()
+      Global.csvReporter.get.report()
     }
   }
 }
@@ -95,6 +103,8 @@ class Receiver extends Actor {
     case Done => {
       val end = System.nanoTime
       Logger.debug(s"Session DONE, start: ${start.get}, end: $end, delta: ${end - start.get} (${(end - start.get) / math.pow(1000, 3)} s)")
+      Global.sl4jReporter.report()
+      Global.csvReporter.get.report()
       sender ! Do
     }
   }
