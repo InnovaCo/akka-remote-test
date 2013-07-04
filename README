@@ -1,0 +1,23 @@
+Throughput testing between 2 JVM instances,
+
+Starting like this (with play installed):
+# on machine 1
+AKKA_LHOST=machine1Ip AKKA_RHOST=machine2 AKKA_LPORT=5522 AKKA_RPORT=5523 play "start -Dpidfile.path=PID1 -Dconfig.file=conf/akka1.conf"
+# on machine 2
+AKKA_LHOST=machine2Ip AKKA_RHOST=machine1 AKKA_LPORT=5523 AKKA_RPORT=5522 play "start -Dpidfile.path=PID1 -Dconfig.file=conf/akka1.conf"
+
+or you can user run_test for local usage
+
+To start messaging you must send USR2 to one of the instances, like this: kill -USR2 `cat PID1`
+After this application will pass batch of messages (application.packSize=100000) and wait for receiving party to swallow it, then it starts again.
+
+Metrics is available via JMX (in i.e. VisualVm), in logs dir as cvs, and outputted to application.log
+
+AKKA_RPORT port for remote akka system
+AKKA_RHOST host of remote akka system
+AKKA_LPORT port for local akka system
+AKKA_LHOST host of local akka system
+
+Notice: remote host from 1st machine must exactly match local host setting on second machine
+
+application.reply enables sending back of message

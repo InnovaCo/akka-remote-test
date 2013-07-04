@@ -1,0 +1,5 @@
+#!/bin/sh
+echo  | AKKA_LPORT=5522 AKKA_RPORT=5523 play "start -Dpidfile.path=PID1 -Dlogger.file=conf/application-logger1.xml -Dconfig.file=conf/akka1.conf"
+
+echo  | AKKA_LPORT=5523 AKKA_RPORT=5522 play "start -Dhttp.port=9002 -Dpidfile.path=PID2 -Dlogger.file=conf/application-logger2.xml -Dconfig.file=conf/akka1.conf"
+
