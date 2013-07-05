@@ -5,8 +5,7 @@ Starting like this (with play installed):
 AKKA_LHOST=machine1Ip AKKA_RHOST=machine2 AKKA_LPORT=5522 AKKA_RPORT=5523 play "start -Dpidfile.path=PID1 -Dconfig.file=conf/akka1.conf"
 # on machine 2
 AKKA_LHOST=machine2Ip AKKA_RHOST=machine1 AKKA_LPORT=5523 AKKA_RPORT=5522 play "start -Dpidfile.path=PID1 -Dconfig.file=conf/akka1.conf"
-
-or you can user run_test for local usage
+:or you can user run_test for local usage
 
 To start messaging you must send USR2 to one of the instances, like this: kill -USR2 `cat PID1`
 After this application will pass batch of messages (application.packSize=100000) and wait for receiving party to swallow it, then it starts again.
